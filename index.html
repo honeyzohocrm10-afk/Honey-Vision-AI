@@ -12978,6 +12978,13 @@ const ZOHO_CONFIG = {
   ACCOUNTS_DOMAIN: 'https://accounts.zoho.in',
   API_DOMAIN: 'https://sheet.zoho.in',         // EU: https://sheet.zoho.eu, IN: https://sheet.zoho.in
   REDIRECT_URI: window.location.origin + window.location.pathname,
+  // Zoho Sheet blocks browser-side CORS writes (adding rows) even though it
+  // allows CORS reads. PROXY_URL is a small Google Apps Script Web App that
+  // relays writes server-side instead — see ZohoWriteProxy.gs for the code
+  // and deployment steps. Paste the deployed "Web app URL" here, e.g.
+  // 'https://script.google.com/macros/s/AKfycb.../exec'. Reads (Users list,
+  // Usage dashboard) are unaffected and keep going straight to Zoho.
+  PROXY_URL: '',   // <-- SET ME after deploying ZohoWriteProxy.gs
 };
 
 (function(){
@@ -13029,17 +13036,40 @@ const ZOHO_CONFIG = {
   async function apiRequest(method, worksheetName, extraParams, isWrite){
     const token = getToken();
     if (!token) throw new Error('not-connected');
+
+    if (isWrite) {
+      // Zoho Sheet's CORS policy allows browser reads but rejects the
+      // preflight for browser writes (no Access-Control-Allow-Origin on
+      // the OPTIONS response), so writes are relayed through a small
+      // Google Apps Script Web App instead — see ZohoWriteProxy.gs.
+      if (!ZOHO_CONFIG.PROXY_URL) {
+        throw new Error('Write proxy not configured — set ZOHO_CONFIG.PROXY_URL (see ZohoWriteProxy.gs)');
+      }
+      const res = await fetch(ZOHO_CONFIG.PROXY_URL, {
+        method: 'POST',
+        // text/plain keeps this a CORS "simple request" (no preflight);
+        // the Apps Script side still parses the body as JSON.
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          token: token,
+          resourceId: ZOHO_CONFIG.RESOURCE_ID,
+          apiDomain: ZOHO_CONFIG.API_DOMAIN,
+          method: method,
+          worksheetName: worksheetName,
+          jsonData: (extraParams && extraParams.json_data) || ''
+        })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.status === 'failure') {
+        throw new Error(json.error_message || ('Write proxy error (HTTP ' + res.status + ')'));
+      }
+      return json;
+    }
+
     const base = ZOHO_CONFIG.API_DOMAIN + '/api/v2/' + ZOHO_CONFIG.RESOURCE_ID;
     const params = new URLSearchParams(Object.assign({ method, worksheet_name: worksheetName }, extraParams || {}));
-    let url = base, opts = { headers: { 'Authorization': 'Zoho-oauthtoken ' + token } };
-    if (isWrite) {
-      opts.method = 'POST';
-      opts.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-      opts.body = params.toString();
-    } else {
-      url = base + '?' + params.toString();
-    }
-    const res = await fetch(url, opts);
+    const url = base + '?' + params.toString();
+    const res = await fetch(url, { headers: { 'Authorization': 'Zoho-oauthtoken ' + token } });
     const json = await res.json().catch(() => ({}));
     if (!res.ok || json.status === 'failure') {
       throw new Error(json.error_message || ('Zoho API error (HTTP ' + res.status + ')'));
