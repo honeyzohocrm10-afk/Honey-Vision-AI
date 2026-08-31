@@ -13032,7 +13032,7 @@ const ZOHO_CONFIG = {
     location.href = ZOHO_CONFIG.ACCOUNTS_DOMAIN + '/oauth/v2/auth?' + p.toString();
   }
 
-  // ---- raw API helpers ----
+ // ---- raw API helpers ----
 async function apiRequest(method, worksheetName, extraParams, isWrite) {
 
   if (!ZOHO_CONFIG.PROXY_URL) {
@@ -13046,7 +13046,6 @@ async function apiRequest(method, worksheetName, extraParams, isWrite) {
   const res = await fetch(ZOHO_CONFIG.PROXY_URL, {
     method: 'POST',
 
-    // Keeps the request simple and avoids CORS preflight.
     headers: {
       'Content-Type': 'text/plain;charset=utf-8'
     },
@@ -13057,8 +13056,11 @@ async function apiRequest(method, worksheetName, extraParams, isWrite) {
       method: method,
       worksheetName: worksheetName,
 
-      // Used for writes.
-      // Empty for reads.
+      // Send all additional Zoho parameters
+      // such as records_start_index and count.
+      extraParams: params,
+
+      // Used for write operations.
       jsonData: params.json_data || ''
     })
   });
@@ -13074,8 +13076,6 @@ async function apiRequest(method, worksheetName, extraParams, isWrite) {
 
   return json;
 }
-
-
 async function fetchRecords(worksheetName, count) {
 
   const json = await apiRequest(
