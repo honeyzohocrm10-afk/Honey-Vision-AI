@@ -13033,106 +13033,164 @@ const ZOHO_CONFIG = {
   }
 
   // ---- raw API helpers ----
-  async function apiRequest(method, worksheetName, extraParams, isWrite){
-    const token = getToken();
-    if (!token) throw new Error('not-connected');
+async function apiRequest(method, worksheetName, extraParams, isWrite) {
 
-    if (isWrite) {
-      // Zoho Sheet's CORS policy allows browser reads but rejects the
-      // preflight for browser writes (no Access-Control-Allow-Origin on
-      // the OPTIONS response), so writes are relayed through a small
-      // Google Apps Script Web App instead — see ZohoWriteProxy.gs.
-      if (!ZOHO_CONFIG.PROXY_URL) {
-        throw new Error('Write proxy not configured — set ZOHO_CONFIG.PROXY_URL (see ZohoWriteProxy.gs)');
-      }
-      const res = await fetch(ZOHO_CONFIG.PROXY_URL, {
-        method: 'POST',
-        // text/plain keeps this a CORS "simple request" (no preflight);
-        // the Apps Script side still parses the body as JSON.
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          token: token,
-          resourceId: ZOHO_CONFIG.RESOURCE_ID,
-          apiDomain: ZOHO_CONFIG.API_DOMAIN,
-          method: method,
-          worksheetName: worksheetName,
-          jsonData: (extraParams && extraParams.json_data) || ''
-        })
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.status === 'failure') {
-        throw new Error(json.error_message || ('Write proxy error (HTTP ' + res.status + ')'));
-      }
-      return json;
+  if (!ZOHO_CONFIG.PROXY_URL) {
+    throw new Error(
+      'Zoho proxy not configured — set ZOHO_CONFIG.PROXY_URL'
+    );
+  }
+
+  const params = extraParams || {};
+
+  const res = await fetch(ZOHO_CONFIG.PROXY_URL, {
+    method: 'POST',
+
+    // Keeps the request simple and avoids CORS preflight.
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+
+    body: JSON.stringify({
+      resourceId: ZOHO_CONFIG.RESOURCE_ID,
+      apiDomain: ZOHO_CONFIG.API_DOMAIN,
+      method: method,
+      worksheetName: worksheetName,
+
+      // Used for writes.
+      // Empty for reads.
+      jsonData: params.json_data || ''
+    })
+  });
+
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok || json.status === 'failure') {
+    throw new Error(
+      json.error_message ||
+      ('Zoho proxy error (HTTP ' + res.status + ')')
+    );
+  }
+
+  return json;
+}
+
+
+async function fetchRecords(worksheetName, count) {
+
+  const json = await apiRequest(
+    'worksheet.records.fetch',
+    worksheetName,
+    {
+      records_start_index: '1',
+      count: String(count || 2000)
+    },
+    false
+  );
+
+  return json.records || [];
+}
+
+
+async function addRecord(worksheetName, dataObj) {
+
+  return apiRequest(
+    'worksheet.records.add',
+    worksheetName,
+    {
+      json_data: JSON.stringify([dataObj])
+    },
+    true
+  );
+}
+
+
+// ---- users cache + current-user selection ----
+let usersCache = [];
+
+
+async function refreshUsers() {
+
+  try {
+
+    const records = await fetchRecords(
+      ZOHO_CONFIG.USERS_SHEET,
+      2000
+    );
+
+    usersCache = records
+
+      .map(r => ({
+        name: (r['Name'] || '')
+          .toString()
+          .trim(),
+
+        email: (r['Email'] || '')
+          .toString()
+          .trim()
+      }))
+
+      .filter(u => u.email);
+
+
+    renderUserPicker();
+    renderManageList();
+
+  } catch(e) {
+
+    console.warn(
+      'Zoho: could not load Users sheet —',
+      e.message
+    );
+  }
+}
+
+
+async function addUser(name, email) {
+
+  await addRecord(
+    ZOHO_CONFIG.USERS_SHEET,
+    {
+      Name: name,
+      Email: email,
+      'Added On': new Date().toISOString()
     }
+  );
 
-    const base = ZOHO_CONFIG.API_DOMAIN + '/api/v2/' + ZOHO_CONFIG.RESOURCE_ID;
-    const params = new URLSearchParams(Object.assign({ method, worksheet_name: worksheetName }, extraParams || {}));
-    const url = base + '?' + params.toString();
-    const res = await fetch(url, { headers: { 'Authorization': 'Zoho-oauthtoken ' + token } });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok || json.status === 'failure') {
-      throw new Error(json.error_message || ('Zoho API error (HTTP ' + res.status + ')'));
-    }
-    return json;
-  }
-  async function fetchRecords(worksheetName, count){
-    const json = await apiRequest('worksheet.records.fetch', worksheetName, {
-      records_start_index: '1', count: String(count || 2000)
-    }, false);
-    return json.records || [];
-  }
-  async function addRecord(worksheetName, dataObj){
-    return apiRequest('worksheet.records.add', worksheetName, { json_data: JSON.stringify([dataObj]) }, true);
-  }
+  await refreshUsers();
+}
 
-  // ---- users cache + current-user selection ----
-  let usersCache = [];
-  async function refreshUsers(){
-    try {
-      const records = await fetchRecords(ZOHO_CONFIG.USERS_SHEET, 2000);
-      usersCache = records
-        .map(r => ({ name: (r['Name'] || '').toString().trim(), email: (r['Email'] || '').toString().trim() }))
-        .filter(u => u.email);
-      renderUserPicker();
-      renderManageList();
-    } catch(e) { console.warn('Zoho: could not load Users sheet —', e.message); }
-  }
-  async function addUser(name, email){
-    await addRecord(ZOHO_CONFIG.USERS_SHEET, { Name: name, Email: email, 'Added On': new Date().toISOString() });
-    await refreshUsers();
-  }
-  function getCurrentUser(){
-    try { return JSON.parse(localStorage.getItem('zu_current_user') || 'null'); } catch(e) { return null; }
-  }
-  function setCurrentUser(u){
-    try { localStorage.setItem('zu_current_user', JSON.stringify(u)); } catch(e) {}
-    updateHeaderUI();
-  }
 
-  // ---- usage logging (never blocks or breaks the OCR flow) ----
-  async function logUsage(status, info){
-    if (!isConnected()) return;
-    const user = getCurrentUser();
-    try {
-      await addRecord(ZOHO_CONFIG.USAGE_SHEET, {
-        Timestamp: new Date().toISOString(),
-        'User Name': user ? user.name : '(not selected)',
-        'User Email': user ? user.email : '',
-        'File Name': (info && info.fileName) || '',
-        'File Type': (info && info.docType) || '',
-        Status: status,
-        Error: (info && info.error) || ''
-      });
-    } catch(e) { console.warn('Zoho: usage log failed —', e.message); }
+function getCurrentUser() {
+
+  try {
+
+    return JSON.parse(
+      localStorage.getItem(
+        'zu_current_user'
+      ) || 'null'
+    );
+
+  } catch(e) {
+
+    return null;
   }
-  // Exposed so the existing extraction code (elsewhere in this file) can
-  // call it without needing to know any of the above.
-  window.zuLogUsage = function(status, info){ logUsage(status, info).catch(() => {}); };
-  window.zuGetCurrentUserLabel = function(){
-    const u = getCurrentUser();
-    return u ? (u.name || u.email) : null;
-  };
+}
+
+
+function setCurrentUser(u) {
+
+  try {
+
+    localStorage.setItem(
+      'zu_current_user',
+      JSON.stringify(u)
+    );
+
+  } catch(e) {}
+
+  updateHeaderUI();
+}
 
   // ---- UI: floating toolbar + modals ----
   const style = document.createElement('style');
