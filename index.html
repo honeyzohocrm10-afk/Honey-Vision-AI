@@ -13192,7 +13192,7 @@ function setCurrentUser(u) {
   updateHeaderUI();
 }
 
-  // ---- UI: floating toolbar + modals ----
+// ---- UI: floating toolbar + modals ----
   const style = document.createElement('style');
   style.textContent = `
     #zu-bar{position:fixed;top:10px;right:10px;z-index:9998;display:flex;gap:6px;align-items:center;
@@ -13202,6 +13202,13 @@ function setCurrentUser(u) {
     #zu-bar button:hover{background:#1f3585;}
     #zu-bar .zu-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
     #zu-bar .zu-dot.on{background:#3ddc84;} #zu-bar .zu-dot.off{background:#ff6b6b;}
+    #zu-menu-wrap{position:relative;}
+    #zuMenuBtn{font-size:16px;line-height:1;padding:6px 10px;}
+    #zu-menu-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#142766;
+      border:1px solid #3a4f99;border-radius:6px;padding:6px;flex-direction:column;gap:6px;min-width:170px;
+      box-shadow:0 8px 24px rgba(0,0,0,.35);}
+    #zu-menu-panel.open{display:flex;}
+    #zu-menu-panel button{width:100%;text-align:left;}
     .zu-overlay{position:fixed;inset:0;background:rgba(10,20,50,.55);z-index:99990;display:flex;
       align-items:center;justify-content:center;padding:16px;}
     .zu-modal{background:#fff;color:#142766;border-radius:8px;max-width:560px;width:100%;max-height:82vh;
@@ -13224,17 +13231,28 @@ function setCurrentUser(u) {
     .zu-summary{background:#f2f5fc;border-radius:6px;padding:8px 10px;margin:8px 0;font-size:12px;}
   `;
   document.head.appendChild(style);
-
   const bar = document.createElement('div');
   bar.id = 'zu-bar';
   bar.innerHTML = `
-    <button id="zuConnectBtn"><span class="zu-dot off" id="zuDot"></span>Connect Zoho</button>
-    <button id="zuWhoBtn">👤 Select your name</button>
-    <button id="zuManageBtn">👥 Users</button>
-    <button id="zuUsageBtn">📊 Usage</button>
+    <div id="zu-menu-wrap">
+      <button id="zuMenuBtn" title="More">⋮</button>
+      <div id="zu-menu-panel">
+        <button id="zuConnectBtn"><span class="zu-dot off" id="zuDot"></span>Connect Zoho</button>
+        <button id="zuWhoBtn">👤 Select your name</button>
+        <button id="zuUsageBtn">📊 Usage</button>
+      </div>
+    </div>
   `;
   document.body.appendChild(bar);
-
+  const zuMenuBtn = document.getElementById('zuMenuBtn');
+  const zuMenuPanel = document.getElementById('zu-menu-panel');
+  zuMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); zuMenuPanel.classList.toggle('open'); });
+  document.addEventListener('click', (e) => {
+    if (!zuMenuPanel.contains(e.target) && e.target !== zuMenuBtn) zuMenuPanel.classList.remove('open');
+  });
+  zuMenuPanel.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => zuMenuPanel.classList.remove('open'));
+  });
   function openModal(html){
     const overlay = document.createElement('div');
     overlay.className = 'zu-overlay';
@@ -13243,7 +13261,6 @@ function setCurrentUser(u) {
     document.body.appendChild(overlay);
     return overlay;
   }
-
   function updateHeaderUI(){
     const dot = document.getElementById('zuDot');
     const connectBtn = document.getElementById('zuConnectBtn');
@@ -13255,7 +13272,6 @@ function setCurrentUser(u) {
     const u = getCurrentUser();
     if (who) who.textContent = u ? ('👤 ' + (u.name || u.email)) : '👤 Select your name';
   }
-
   // -- "who are you" picker --
   function renderUserPicker(){
     // If a picker modal happens to be open while the user list refreshes,
