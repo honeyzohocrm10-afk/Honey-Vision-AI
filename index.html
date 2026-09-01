@@ -2792,23 +2792,18 @@ async function loadFileForBatch(file){
   resetUploadState();
   uploadedFileName = file.name || '';
   const name = uploadedFileName.toLowerCase();
-  const batchStartTime = new Date().toISOString();
   if (file.type.startsWith('image/')) {
-    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'image', startTime: batchStartTime, pageCount: 1 });
     await handleImageFile(file);
     if (!imageBase64) throw new Error('Could not read this image.');
   } else if (file.type === 'application/pdf' || name.endsWith('.pdf')) {
-    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'pdf', startTime: batchStartTime, pageCount: 1 });
     await handlePdfFile(file);
     if (!pdfPagesBase64.length) throw new Error('Could not read this PDF.');
   } else if (name.endsWith('.docx') || file.type.includes('wordprocessingml')) {
-    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'word', startTime: batchStartTime, pageCount: 1 });
     const ok = await handleWordFile(file);
     if (!ok) throw new Error('Could not read this Word file.');
   } else if (name.endsWith('.doc')) {
     throw new Error('Old-style .doc isn\'t readable in-browser — save it as .docx first.');
   } else if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv') || file.type.includes('spreadsheetml') || file.type === 'text/csv') {
-    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'excel', startTime: batchStartTime, pageCount: 1 });
     await handleExcelFile(file);
     if (!pendingExtractedText) throw new Error('Could not read this spreadsheet.');
   } else {
@@ -2905,20 +2900,22 @@ async function processAllAndDownloadZip(statusEl){
       const file = files[i];
       setStatus(statusEl, `Processing ${i + 1} of ${files.length}: ${file.name}…`);
       renderQueueList(files, i);
+      const batchStartTime = new Date().toISOString();
       try {
         await loadFileForBatch(file);
-        const batchStartTime = new Date().toISOString();
-        if (window.zuLogUsage) window.zuLogUsage('Pending', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, pageCount: sourcePageCount || pdfPagesBase64.length || 1 });
-        if (window.zuLogUsage) window.zuLogUsage('On Process', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, pageCount: sourcePageCount || pdfPagesBase64.length || 1 });
+        const batchPageCount = sourcePageCount || pdfPagesBase64.length || 1;
+        if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, pageCount: batchPageCount });
+        if (window.zuLogUsage) window.zuLogUsage('Pending', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, pageCount: batchPageCount });
+        if (window.zuLogUsage) window.zuLogUsage('On Process', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, pageCount: sourcePageCount || pdfPagesBase64.length || (uploadedFileType === 'word' ? '' : 1) });
         const ok = await extractCurrentUploadForBatch(activePrompt, statusEl);
         if (!ok) throw new Error('No text could be extracted from this file.');
         const built = await buildWordBlob();
         if (!built) throw new Error('Could not build a Word document from this file.');
         zip.file(zipEntryNameFor(file, i, usedNames), built.blob);
-        if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || pdfPagesBase64.length || 1 });
+        if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || pdfPagesBase64.length || (uploadedFileType === 'word' ? '' : 1) });
       } catch(err){
         failures.push(`${file.name}: ${err.message}`);
-        if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: file.name, docType: uploadedFileType || '', endTime: new Date().toISOString(), pageCount: sourcePageCount || pdfPagesBase64.length || 1, error: err.message });
+        if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || pdfPagesBase64.length || (uploadedFileType === 'word' ? '' : 1), error: err.message });
       }
     }
     if (Object.keys(zip.files).length) markStep2Completed();
@@ -3282,39 +3279,15 @@ function handleFile(file){
   clearFileBtn.style.display = 'flex';
 
   if (file.type.startsWith('image/')) {
-    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
-      fileName: uploadedFileName,
-      docType: 'image',
-      startTime: new Date().toISOString(),
-      pageCount: 1
-    });
     handleImageFile(file);
   } else if (file.type === 'application/pdf' || name.endsWith('.pdf')) {
-    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
-      fileName: uploadedFileName,
-      docType: 'pdf',
-      startTime: new Date().toISOString(),
-      pageCount: 1
-    });
     handlePdfFile(file);
   } else if (name.endsWith('.docx') || file.type.includes('wordprocessingml')) {
-    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
-      fileName: uploadedFileName,
-      docType: 'word',
-      startTime: new Date().toISOString(),
-      pageCount: 1
-    });
     handleWordFile(file);
   } else if (name.endsWith('.doc')) {
     setStatus(extractStatus, 'Old-style .doc isn\'t readable in-browser — please save it as .docx and re-upload.', true);
     uploadedFileType = null;
   } else if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv') || file.type.includes('spreadsheetml') || file.type === 'text/csv') {
-    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
-      fileName: uploadedFileName,
-      docType: 'excel',
-      startTime: new Date().toISOString(),
-      pageCount: 1
-    });
     handleExcelFile(file);
   } else {
     setStatus(extractStatus, 'Unsupported file type. Please upload an image, PDF, Word (.docx), or Excel (.xlsx/.xls/.csv) file.', true);
@@ -8636,9 +8609,13 @@ extractBtn.addEventListener('click', async () => {
   // Excel: already parsed locally, no Gemini call needed for this step —
   // nothing to "read", so no scan animation for this branch.
   if (uploadedFileType === 'excel') {
+    const excelStartTime = new Date().toISOString();
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'excel', startTime: excelStartTime, pageCount: 1 });
+    if (window.zuLogUsage) window.zuLogUsage('Pending', { fileName: uploadedFileName, docType: 'excel', startTime: excelStartTime, pageCount: 1 });
+    if (window.zuLogUsage) window.zuLogUsage('On Process', { fileName: uploadedFileName, docType: 'excel', startTime: excelStartTime, pageCount: 1 });
     renderOutput(pendingExtractedText || '', true);
     setStatus(extractStatus, 'Loaded.');
-    if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'excel', startTime: new Date().toISOString(), endTime: new Date().toISOString(), pageCount: 1 });
+    if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'excel', startTime: excelStartTime, endTime: new Date().toISOString(), pageCount: 1 });
     extractBtn.disabled = false;
     setUploadAreaBusy(false);
     advanceQueueOnComplete();
@@ -8649,6 +8626,12 @@ extractBtn.addEventListener('click', async () => {
   showScanOverlay(true, 'Reading the document…');
   try{
     const lifecycleStartTime = new Date().toISOString();
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
+      fileName: uploadedFileName,
+      docType: uploadedFileType || '',
+      startTime: lifecycleStartTime,
+      pageCount: sourcePageCount || pdfPagesBase64.length || 1
+    });
     if (window.zuLogUsage) window.zuLogUsage('Pending', {
       fileName: uploadedFileName,
       docType: uploadedFileType || '',
@@ -13209,9 +13192,11 @@ async function addRecord(worksheetName, dataObj) {
 
 function getCurrentUserMeta(){
   const u = getCurrentUser();
+  const remembered = !u ? getSavedUserLogin() : null;
+  const fallbackEmail = remembered ? remembered.email : '';
   return {
-    name: u ? (u.name || u.email || '') : '',
-    email: u ? (u.email || '') : ''
+    name: u ? (u.name || u.email || '') : (fallbackEmail || 'Unselected User'),
+    email: u ? (u.email || '') : fallbackEmail
   };
 }
 
@@ -13233,28 +13218,46 @@ function normalizeUsageStatus(status){
   return text;
 }
 
+const usageLifecycleByFile = new Map();
+
 window.zuLogUsage = function(status, meta = {}) {
   const info = meta || {};
   const user = getCurrentUserMeta();
   const normalizedStatus = normalizeUsageStatus(status);
   const nowIso = new Date().toISOString();
-  const safePageCount = safeUsageNumber(info.pageCount ?? sourcePageCount ?? '');
-  const startTime = (info.startTime || '').toString().trim() || nowIso;
-  const endTime = (info.endTime || '').toString().trim() || ((normalizedStatus === 'Success' || normalizedStatus === 'Failed') ? nowIso : '');
+  const fileName = (info.fileName || '').toString().trim();
+  const lifecycleKey = `${user.email || user.name}|${fileName}`;
+  const isFinished = normalizedStatus === 'Success' || normalizedStatus === 'Failed';
+  const previous = usageLifecycleByFile.get(lifecycleKey) || {};
+  const startTime = (previous.startTime || info.startTime || nowIso).toString().trim();
+  const pageCount = info.pageCount ?? previous.pageCount ?? sourcePageCount ?? '';
+
+  if (!fileName) return;
+  if (!isFinished) {
+    usageLifecycleByFile.set(lifecycleKey, {
+      fileName,
+      docType: (info.docType || previous.docType || '').toString().trim(),
+      startTime,
+      pageCount
+    });
+    return;
+  }
+
   const record = {
-    Timestamp: (info.timestamp || nowIso).toString().trim() || nowIso,
+    // Use the actual processing start as the row's main timestamp.
+    Timestamp: startTime,
     'User Name': user.name,
     'User Email': user.email,
-    'File Name': (info.fileName || '').toString().trim(),
-    'File Type': (info.docType || '').toString().trim(),
+    'File Name': fileName,
+    'File Type': (info.docType || previous.docType || '').toString().trim(),
     Status: normalizedStatus,
     Error: (info.error || '').toString().trim(),
     'Start Time': startTime,
-    'End Time': endTime,
-    'Page Count': safePageCount
+    'End Time': (info.endTime || nowIso).toString().trim() || nowIso,
+    'Page Count': safeUsageNumber(pageCount)
   };
 
-  if (!record['File Name']) return;
+  usageLifecycleByFile.delete(lifecycleKey);
 
   addRecord(ZOHO_CONFIG.USAGE_SHEET, record).catch(err => {
     console.warn('Zoho: could not log usage row —', err.message);
@@ -13502,6 +13505,13 @@ function setCurrentUser(u) {
   }
   function escapeHtmlZu(s){ return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+    function formatUsageDate(value){
+      const text = (value || '').toString().trim();
+      if (!text) return '';
+      const date = new Date(text);
+      return Number.isNaN(date.getTime()) ? text : date.toLocaleString();
+    }
+
   function getRememberedUserMatch(){
     const remembered = getSavedUserLogin();
     if (!remembered || !remembered.email || !usersCache.length) return null;
@@ -13639,13 +13649,13 @@ function setCurrentUser(u) {
         : 'No usage logged yet.';
       const tbody = overlay.querySelector('#zuUsageTable tbody');
       tbody.innerHTML = rows.slice(0, 500).map(r => `<tr>
-          <td>${escapeHtmlZu((r['Timestamp']||'').toString().replace('T',' ').slice(0,19))}</td>
+          <td>${escapeHtmlZu(formatUsageDate(r['Timestamp']))}</td>
           <td>${escapeHtmlZu(r['User Name']||r['User Email']||'')}</td>
           <td>${escapeHtmlZu(r['File Name']||'')}</td>
           <td>${escapeHtmlZu(r['File Type']||'')}</td>
           <td>${escapeHtmlZu(r['Status']||'')}</td>
-          <td>${escapeHtmlZu((r['Start Time']||'').toString().replace('T',' ').slice(0,19))}</td>
-          <td>${escapeHtmlZu((r['End Time']||'').toString().replace('T',' ').slice(0,19))}</td>
+          <td>${escapeHtmlZu(formatUsageDate(r['Start Time']))}</td>
+          <td>${escapeHtmlZu(formatUsageDate(r['End Time']))}</td>
           <td>${escapeHtmlZu(r['Page Count']||'')}</td>
         </tr>`).join('');
     }
