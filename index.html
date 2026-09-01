@@ -13231,19 +13231,27 @@ function setCurrentUser(u) {
     .zu-summary{background:#f2f5fc;border-radius:6px;padding:8px 10px;margin:8px 0;font-size:12px;}
   `;
   document.head.appendChild(style);
-  const bar = document.createElement('div');
-  bar.id = 'zu-bar';
-  bar.innerHTML = `
-    <div id="zu-menu-wrap">
-      <button id="zuMenuBtn" title="More">⋮</button>
-      <div id="zu-menu-panel">
-        <button id="zuConnectBtn"><span class="zu-dot off" id="zuDot"></span>Connect Zoho</button>
-        <button id="zuWhoBtn">👤 Select your name</button>
-        <button id="zuUsageBtn">📊 Usage</button>
-      </div>
+const bar = document.createElement('div');
+bar.id = 'zu-bar';
+
+bar.innerHTML = `
+  <button id="zuConnectBtn">
+    <span class="zu-dot off" id="zuDot"></span>Connect Zoho
+  </button>
+
+  <div id="zuMenuWrap">
+    <button id="zuMenuBtn" type="button" title="More options">⋮</button>
+
+    <div id="zuDropdown">
+      <button id="zuWhoBtn" type="button">👤 Select your name</button>
+      <button id="zuManageBtn" type="button">👥 Users</button>
+      <button id="zuUsageBtn" type="button">📊 Usage</button>
     </div>
-  `;
-  document.body.appendChild(bar);
+  </div>
+`;
+
+document.body.appendChild(bar);
+  
   const zuMenuBtn = document.getElementById('zuMenuBtn');
   const zuMenuPanel = document.getElementById('zu-menu-panel');
   zuMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); zuMenuPanel.classList.toggle('open'); });
