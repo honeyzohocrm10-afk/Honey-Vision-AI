@@ -88,6 +88,7 @@
     pointer-events:none;
     opacity:.5;
   }
+  .section-hidden{display:none !important;}
   .card h2{
     font-family:var(--serif);
     font-size:18px;
@@ -1609,31 +1610,34 @@
       <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">Uses Anthropic's Messages API directly from this browser tab. Your Claude key never touches any server other than api.anthropic.com.</div>
     </div>
 
-    <div class="row" style="margin-top:12px;">
-      <div>
-        <label for="sourceLangHint">Document Language / Script</label>
-        <select id="sourceLangHint">
-          <option value="" selected>Auto-detect (default)</option>
-          <option value="Tamil">Tamil</option>
-          <option value="Telugu">Telugu</option>
-          <option value="Kannada">Kannada</option>
-          <option value="Malayalam">Malayalam</option>
-          <option value="Hindi">Hindi / Devanagari</option>
-          <option value="English">English</option>
-          <option value="Other">Other / mixed scripts</option>
-        </select>
+    <button type="button" id="advancedSettingsToggle" class="secondary" style="margin-top:12px;">Show advanced options</button>
+    <div id="advancedSettingsPanel" class="section-hidden" style="margin-top:12px;">
+      <div class="row" style="margin-top:12px;">
+        <div>
+          <label for="sourceLangHint">Document Language / Script</label>
+          <select id="sourceLangHint">
+            <option value="" selected>Auto-detect (default)</option>
+            <option value="Tamil">Tamil</option>
+            <option value="Telugu">Telugu</option>
+            <option value="Kannada">Kannada</option>
+            <option value="Malayalam">Malayalam</option>
+            <option value="Hindi">Hindi / Devanagari</option>
+            <option value="English">English</option>
+            <option value="Other">Other / mixed scripts</option>
+          </select>
+        </div>
       </div>
-    </div>
-    <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">Telling the model the script up front helps it read old/handwritten South Indian-language documents more accurately — it stops guessing the language and pays closer attention to that script's letterforms, including archaic ones.</div>
-    <div class="row" style="margin-top:10px;align-items:center;">
-      <div style="flex:none;">
-        <label style="display:flex;align-items:center;gap:6px;margin-bottom:0;cursor:pointer;">
-          <input type="checkbox" id="maxZoomToggle" style="width:auto;margin:0;">
-          Maximum zoom (dense/old handwriting)
-        </label>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">Telling the model the script up front helps it read old/handwritten South Indian-language documents more accurately — it stops guessing the language and pays closer attention to that script's letterforms, including archaic ones.</div>
+      <div class="row" style="margin-top:10px;align-items:center;">
+        <div style="flex:none;">
+          <label style="display:flex;align-items:center;gap:6px;margin-bottom:0;cursor:pointer;">
+            <input type="checkbox" id="maxZoomToggle" style="width:auto;margin:0;">
+            Maximum zoom (dense/old handwriting)
+          </label>
+        </div>
       </div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Forces every page to be upscaled far more aggressively than the automatic setting, even if it's already a decent resolution — worth turning on for a page packed with small, dense, or old cursive handwriting. Slower per page, and it still can't invent a reading for a spot that's genuinely illegible in the source photo — it just gives the model more actual pixels to work with per character.</div>
     </div>
-    <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Forces every page to be upscaled far more aggressively than the automatic setting, even if it's already a decent resolution — worth turning on for a page packed with small, dense, or old cursive handwriting. Slower per page, and it still can't invent a reading for a spot that's genuinely illegible in the source photo — it just gives the model more actual pixels to work with per character.</div>
     <div class="btn-row align-right">
       <button id="testKeyBtn" class="secondary">Test Connection</button>
     </div>
@@ -1646,10 +1650,10 @@
     <input type="text" id="downloadFilename" placeholder="e.g. Invoice batch — client X" autocomplete="off" spellcheck="false" required>
     <div style="font-size:11px;color:#cdd9ff;margin-top:6px;">Required — used only to label this document in History. Downloaded files keep your original file's own name.</div>
   </div>
-  <div class="side-by-side">
+  <div class="side-by-side section-hidden" id="workflowPanel">
 
   <!-- UPLOAD -->
-  <div class="card side-col">
+  <div class="card side-col" id="uploadSection">
     <h2><span class="num">2</span>Upload the Document</h2>
     <div class="upload-row">
     <div class="dropzone" id="dropzone" tabindex="0">
@@ -1746,7 +1750,7 @@
   </div>
 
   <!-- REUPLOAD -->
-  <div class="card side-col">
+  <div class="card side-col section-hidden" id="reuploadSection">
     <h2><span class="num">3</span>Re-uploaded the Document</h2>
     <p style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;line-height:1.5;">
       Already downloaded your Word file(s) from Step 2 and corrected them by hand? Reupload the corrected <strong>.docx</strong> file(s) here to load them back in. This step never re-reads the page as an image and never touches layout, tables, bold/underline, or alignment, so whatever you reupload comes back exactly as formatted — no changes.
@@ -1774,7 +1778,7 @@
 
   <!-- OUTPUT (full-width, landscape, below the side-by-side row — same
        treatment as the "Connect Your Gemini Key" card at the top) -->
-  <div class="card">
+  <div class="card section-hidden" id="outputSection">
     <h2><span class="num">4</span>Transcribed Text</h2>
     <div class="lang-badges" id="langBadges" style="display:none;">
       <span class="lang-badge" id="inputLangBadge">Input language: —</span>
@@ -2376,6 +2380,12 @@ const translateLang = document.getElementById('translateLang');
 // internally routes to whichever provider is selected here.
 const geminiKeyGroup = document.getElementById('geminiKeyGroup');
 const claudeKeyGroup = document.getElementById('claudeKeyGroup');
+const advancedSettingsToggle = document.getElementById('advancedSettingsToggle');
+const advancedSettingsPanel = document.getElementById('advancedSettingsPanel');
+const workflowPanel = document.getElementById('workflowPanel');
+const uploadSection = document.getElementById('uploadSection');
+const reuploadSection = document.getElementById('reuploadSection');
+const outputSection = document.getElementById('outputSection');
 function getProvider(){
   const checked = document.querySelector('input[name="aiProvider"]:checked');
   return checked ? checked.value : 'gemini';
@@ -2385,8 +2395,30 @@ function updateProviderVisibility(){
   geminiKeyGroup.style.display = isClaude ? 'none' : '';
   claudeKeyGroup.style.display = isClaude ? '' : 'none';
 }
+function revealWorkflowAfterKey(){
+  const provider = getProvider();
+  const key = provider === 'claude' ? (claudeApiKeyInput.value || '').trim() : (apiKeyInput.value || '').trim();
+  const hasKey = !!key;
+  if (hasKey) {
+    workflowPanel.classList.remove('section-hidden');
+    uploadSection.classList.remove('section-hidden');
+    if (step2CompletedOnce) reuploadSection.classList.remove('section-hidden');
+  }
+}
+advancedSettingsToggle.addEventListener('click', () => {
+  const hidden = advancedSettingsPanel.classList.toggle('section-hidden');
+  advancedSettingsToggle.textContent = hidden ? 'Show advanced options' : 'Hide advanced options';
+});
+[apiKeyInput, claudeApiKeyInput].forEach(input => {
+  input.addEventListener('input', () => {
+    revealWorkflowAfterKey();
+  });
+});
 document.querySelectorAll('input[name="aiProvider"]').forEach(radio => {
-  radio.addEventListener('change', updateProviderVisibility);
+  radio.addEventListener('change', () => {
+    updateProviderVisibility();
+    revealWorkflowAfterKey();
+  });
 });
 updateProviderVisibility();
 
@@ -2494,6 +2526,7 @@ let pendingDirectTranslateLang = null;
 let pendingDirectGrammarCheck = false;
 function markStep2Completed(){
   step2CompletedOnce = true;
+  reuploadSection.classList.remove('section-hidden');
   updateReuploadDropzoneLock();
   uploadLockedAfterCompletion = true;
   updateDropzoneLock();
@@ -2759,18 +2792,23 @@ async function loadFileForBatch(file){
   resetUploadState();
   uploadedFileName = file.name || '';
   const name = uploadedFileName.toLowerCase();
+  const batchStartTime = new Date().toISOString();
   if (file.type.startsWith('image/')) {
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'image', startTime: batchStartTime, pageCount: 1 });
     await handleImageFile(file);
     if (!imageBase64) throw new Error('Could not read this image.');
   } else if (file.type === 'application/pdf' || name.endsWith('.pdf')) {
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'pdf', startTime: batchStartTime, pageCount: 1 });
     await handlePdfFile(file);
     if (!pdfPagesBase64.length) throw new Error('Could not read this PDF.');
   } else if (name.endsWith('.docx') || file.type.includes('wordprocessingml')) {
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'word', startTime: batchStartTime, pageCount: 1 });
     const ok = await handleWordFile(file);
     if (!ok) throw new Error('Could not read this Word file.');
   } else if (name.endsWith('.doc')) {
     throw new Error('Old-style .doc isn\'t readable in-browser — save it as .docx first.');
   } else if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv') || file.type.includes('spreadsheetml') || file.type === 'text/csv') {
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', { fileName: uploadedFileName, docType: 'excel', startTime: batchStartTime, pageCount: 1 });
     await handleExcelFile(file);
     if (!pendingExtractedText) throw new Error('Could not read this spreadsheet.');
   } else {
@@ -2869,15 +2907,18 @@ async function processAllAndDownloadZip(statusEl){
       renderQueueList(files, i);
       try {
         await loadFileForBatch(file);
+        const batchStartTime = new Date().toISOString();
+        if (window.zuLogUsage) window.zuLogUsage('Pending', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, pageCount: sourcePageCount || pdfPagesBase64.length || 1 });
+        if (window.zuLogUsage) window.zuLogUsage('On Process', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, pageCount: sourcePageCount || pdfPagesBase64.length || 1 });
         const ok = await extractCurrentUploadForBatch(activePrompt, statusEl);
         if (!ok) throw new Error('No text could be extracted from this file.');
         const built = await buildWordBlob();
         if (!built) throw new Error('Could not build a Word document from this file.');
         zip.file(zipEntryNameFor(file, i, usedNames), built.blob);
-        if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: file.name, docType: uploadedFileType || '' });
+        if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: file.name, docType: uploadedFileType || '', startTime: batchStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || pdfPagesBase64.length || 1 });
       } catch(err){
         failures.push(`${file.name}: ${err.message}`);
-        if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: file.name, docType: uploadedFileType || '', error: err.message });
+        if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: file.name, docType: uploadedFileType || '', endTime: new Date().toISOString(), pageCount: sourcePageCount || pdfPagesBase64.length || 1, error: err.message });
       }
     }
     if (Object.keys(zip.files).length) markStep2Completed();
@@ -3241,15 +3282,39 @@ function handleFile(file){
   clearFileBtn.style.display = 'flex';
 
   if (file.type.startsWith('image/')) {
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
+      fileName: uploadedFileName,
+      docType: 'image',
+      startTime: new Date().toISOString(),
+      pageCount: 1
+    });
     handleImageFile(file);
   } else if (file.type === 'application/pdf' || name.endsWith('.pdf')) {
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
+      fileName: uploadedFileName,
+      docType: 'pdf',
+      startTime: new Date().toISOString(),
+      pageCount: 1
+    });
     handlePdfFile(file);
   } else if (name.endsWith('.docx') || file.type.includes('wordprocessingml')) {
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
+      fileName: uploadedFileName,
+      docType: 'word',
+      startTime: new Date().toISOString(),
+      pageCount: 1
+    });
     handleWordFile(file);
   } else if (name.endsWith('.doc')) {
     setStatus(extractStatus, 'Old-style .doc isn\'t readable in-browser — please save it as .docx and re-upload.', true);
     uploadedFileType = null;
   } else if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv') || file.type.includes('spreadsheetml') || file.type === 'text/csv') {
+    if (window.zuLogUsage) window.zuLogUsage('Start Now', {
+      fileName: uploadedFileName,
+      docType: 'excel',
+      startTime: new Date().toISOString(),
+      pageCount: 1
+    });
     handleExcelFile(file);
   } else {
     setStatus(extractStatus, 'Unsupported file type. Please upload an image, PDF, Word (.docx), or Excel (.xlsx/.xls/.csv) file.', true);
@@ -5827,6 +5892,7 @@ function renderOutput(text, isNewExtraction){
   extractedOutput.classList.toggle('has-page-border', currentHasPageBorder && !!text);
 
   const hasText = !!text;
+  if (hasText) outputSection.classList.remove('section-hidden');
   translateBtn.disabled = !hasText;
   reuploadTranslateBtn.disabled = !hasText;
   grammarBtn.disabled = !hasText;
@@ -8572,7 +8638,7 @@ extractBtn.addEventListener('click', async () => {
   if (uploadedFileType === 'excel') {
     renderOutput(pendingExtractedText || '', true);
     setStatus(extractStatus, 'Loaded.');
-    if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'excel' });
+    if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'excel', startTime: new Date().toISOString(), endTime: new Date().toISOString(), pageCount: 1 });
     extractBtn.disabled = false;
     setUploadAreaBusy(false);
     advanceQueueOnComplete();
@@ -8582,16 +8648,29 @@ extractBtn.addEventListener('click', async () => {
 
   showScanOverlay(true, 'Reading the document…');
   try{
+    const lifecycleStartTime = new Date().toISOString();
+    if (window.zuLogUsage) window.zuLogUsage('Pending', {
+      fileName: uploadedFileName,
+      docType: uploadedFileType || '',
+      startTime: lifecycleStartTime,
+      pageCount: sourcePageCount || 1
+    });
     // Word: text/tables were parsed locally, but any embedded images
     // (signatures, photos, QR codes, barcodes, or a full scanned page) need
     // a Gemini call to identify or read them.
     if (uploadedFileType === 'word') {
+      if (window.zuLogUsage) window.zuLogUsage('On Process', {
+        fileName: uploadedFileName,
+        docType: 'word',
+        startTime: lifecycleStartTime,
+        pageCount: sourcePageCount || 1
+      });
       const text = await extractWordText();
-      if (text === null) { if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: 'word', error: 'extraction returned null' }); return; }
-      if (!text) { setStatus(extractStatus, 'No text found in this document.', true); if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: 'word', error: 'no text found' }); return; }
+      if (text === null) { if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: 'word', startTime: lifecycleStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || 1, error: 'extraction returned null' }); return; }
+      if (!text) { setStatus(extractStatus, 'No text found in this document.', true); if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: 'word', startTime: lifecycleStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || 1, error: 'no text found' }); return; }
       renderOutput(text, true);
       setStatus(extractStatus, 'Done.');
-      if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'word' });
+      if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'word', startTime: lifecycleStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || 1 });
       advanceQueueOnComplete();
       markStep2Completed();
       return;
@@ -8610,18 +8689,30 @@ extractBtn.addEventListener('click', async () => {
       if (!pdfPagesBase64.length) { setStatus(extractStatus, 'No PDF pages were loaded — try re-uploading the file.', true); return; }
       pdfResumeState = null;
       pdfResumePanel.style.display = 'none';
+      if (window.zuLogUsage) window.zuLogUsage('On Process', {
+        fileName: uploadedFileName,
+        docType: 'pdf',
+        startTime: lifecycleStartTime,
+        pageCount: sourcePageCount || pdfPagesBase64.length
+      });
       const finished = await runPdfPages(0, [], activePrompt);
       if (finished) {
-        if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'pdf' });
+        if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'pdf', startTime: lifecycleStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || pdfPagesBase64.length });
         advanceQueueOnComplete(); markStep2Completed();
       } else if (window.zuLogUsage) {
-        window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: 'pdf', error: 'stopped before completion' });
+        window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: 'pdf', startTime: lifecycleStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || pdfPagesBase64.length, error: 'stopped before completion' });
       }
       return;
     }
 
     // Image: single Gemini OCR call.
     if (!imageBase64) { setStatus(extractStatus, 'No image was loaded — try re-uploading the file.', true); return; }
+    if (window.zuLogUsage) window.zuLogUsage('On Process', {
+      fileName: uploadedFileName,
+      docType: 'image',
+      startTime: lifecycleStartTime,
+      pageCount: sourcePageCount || 1
+    });
     // Intelligent preprocessing (upscale when needed, plus adaptive contrast,
     // lighting flattening, denoise, and sharpening only when the image needs
     // them) before sending to OCR — gives the model cleaner edges and more
@@ -8670,11 +8761,11 @@ extractBtn.addEventListener('click', async () => {
       const resolved = await resolveMediaImagesInPageText(resolvedGraphics, imageBase64, imageMime, extractStatus, 'Locating stamps/signatures…');
       renderOutput(resolved, true);
       setStatus(extractStatus, withProModelTip('Done.', resolved));
-      if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'image' });
+      if (window.zuLogUsage) window.zuLogUsage('Success', { fileName: uploadedFileName, docType: 'image', startTime: lifecycleStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || 1 });
       advanceQueueOnComplete();
       markStep2Completed();
     } else if (window.zuLogUsage) {
-      window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: 'image', error: 'no result from OCR' });
+      window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: 'image', startTime: lifecycleStartTime, endTime: new Date().toISOString(), pageCount: sourcePageCount || 1, error: 'no result from OCR' });
     }
   } catch (err) {
     // Previously there was no catch here at all: any unexpected error
@@ -8685,7 +8776,7 @@ extractBtn.addEventListener('click', async () => {
     // like "nothing happens". Now it's shown like any other error.
     console.error('extractBtn handler error:', err);
     setStatus(extractStatus, 'Unexpected error: ' + (err && err.message ? err.message : err), true);
-    if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: uploadedFileType || '', error: (err && err.message) ? err.message : String(err) });
+    if (window.zuLogUsage) window.zuLogUsage('Failed', { fileName: uploadedFileName, docType: uploadedFileType || '', startTime: new Date().toISOString(), endTime: new Date().toISOString(), pageCount: sourcePageCount || 1, error: (err && err.message) ? err.message : String(err) });
   } finally {
     showScanOverlay(false);
     extractBtn.disabled = false;
@@ -12939,7 +13030,8 @@ if (uploadToCrmBtn) {
 // lives in a Zoho Sheet workbook with two worksheets:
 //   - "Users"  columns: Name | Email | Added On
 //   - "Usage"  columns: Timestamp | User Name | User Email | File Name |
-//                        File Type | Status | Error
+//                        File Type | Status | Error | Start Time | End Time |
+//                        Page Count
 // There's no backend server here (this is a single HTML file), so this
 // talks to Zoho Sheet's own REST API straight from the browser using
 // Zoho's "Client-based (CORS) Application" OAuth flow — no client secret
@@ -12949,7 +13041,7 @@ if (uploadToCrmBtn) {
 // 1. In Zoho Sheet, create a workbook (any name) with two worksheets
 //    named exactly "Users" and "Usage", each with just a header row:
 //      Users sheet, row 1:  Name | Email | Added On
-//      Usage sheet, row 1:  Timestamp | User Name | User Email | File Name | File Type | Status | Error
+//      Usage sheet, row 1:  Timestamp | User Name | User Email | File Name | File Type | Status | Error | Start Time | End Time | Page Count
 //    Open the workbook and copy its ID out of the URL:
 //      https://sheet.zoho.com/sheet/open/XXXXXXXXXXXXXXXXXXXXXXXXX  <- this part
 // 2. Go to https://accounts.zoho.com/developerconsole and add a new
@@ -13001,20 +13093,31 @@ const ZOHO_CONFIG = {
     const expiresIn = parseInt(h.get('expires_in') || '3600', 10);
     if (!token) return;
     const expiresAt = Date.now() + Math.max(60, expiresIn - 60) * 1000;
-    try { sessionStorage.setItem('zu_zoho_token', JSON.stringify({ token, expiresAt })); } catch(e) {}
+    try {
+      localStorage.setItem('zu_zoho_token', JSON.stringify({ token, expiresAt }));
+      sessionStorage.removeItem('zu_zoho_token');
+    } catch(e) {}
     history.replaceState(null, '', location.pathname + location.search);
   }
   function getToken(){
     try {
-      const raw = sessionStorage.getItem('zu_zoho_token');
+      const raw = localStorage.getItem('zu_zoho_token') || sessionStorage.getItem('zu_zoho_token');
       if (!raw) return null;
       const data = JSON.parse(raw);
-      if (!data.token || Date.now() >= data.expiresAt) return null;
+      if (!data.token || Date.now() >= data.expiresAt) {
+        localStorage.removeItem('zu_zoho_token');
+        sessionStorage.removeItem('zu_zoho_token');
+        return null;
+      }
       return data.token;
     } catch(e) { return null; }
   }
   function isConnected(){ return !!getToken(); }
   function connect(){
+    if (isConnected()) {
+      updateHeaderUI();
+      return;
+    }
     if (!zohoConfigured()) {
       alert('Zoho tracking isn\'t set up yet. See the setup comments above ZOHO_CONFIG near the bottom of the code: an admin needs to fill in CLIENT_ID and RESOURCE_ID.');
       return;
@@ -13104,6 +13207,60 @@ async function addRecord(worksheetName, dataObj) {
   );
 }
 
+function getCurrentUserMeta(){
+  const u = getCurrentUser();
+  return {
+    name: u ? (u.name || u.email || '') : '',
+    email: u ? (u.email || '') : ''
+  };
+}
+
+function safeUsageNumber(value){
+  if (value === undefined || value === null || value === '') return '';
+  const n = Number(value);
+  return Number.isFinite(n) ? String(n) : String(value);
+}
+
+function normalizeUsageStatus(status){
+  const text = (status || '').toString().trim();
+  const lowered = text.toLowerCase();
+  if (!text) return 'Pending';
+  if (lowered === 'start now' || lowered === 'start-now' || lowered.startsWith('start')) return 'Start Now';
+  if (lowered === 'pending' || lowered.includes('pending')) return 'Pending';
+  if (lowered === 'on process' || lowered === 'in process' || lowered.includes('process')) return 'On Process';
+  if (lowered === 'success' || lowered.includes('success')) return 'Success';
+  if (lowered === 'failed' || lowered.includes('failed')) return 'Failed';
+  return text;
+}
+
+window.zuLogUsage = function(status, meta = {}) {
+  const info = meta || {};
+  const user = getCurrentUserMeta();
+  const normalizedStatus = normalizeUsageStatus(status);
+  const nowIso = new Date().toISOString();
+  const safePageCount = safeUsageNumber(info.pageCount ?? sourcePageCount ?? '');
+  const startTime = (info.startTime || '').toString().trim() || nowIso;
+  const endTime = (info.endTime || '').toString().trim() || ((normalizedStatus === 'Success' || normalizedStatus === 'Failed') ? nowIso : '');
+  const record = {
+    Timestamp: (info.timestamp || nowIso).toString().trim() || nowIso,
+    'User Name': user.name,
+    'User Email': user.email,
+    'File Name': (info.fileName || '').toString().trim(),
+    'File Type': (info.docType || '').toString().trim(),
+    Status: normalizedStatus,
+    Error: (info.error || '').toString().trim(),
+    'Start Time': startTime,
+    'End Time': endTime,
+    'Page Count': safePageCount
+  };
+
+  if (!record['File Name']) return;
+
+  addRecord(ZOHO_CONFIG.USAGE_SHEET, record).catch(err => {
+    console.warn('Zoho: could not log usage row —', err.message);
+  });
+};
+
 
 // ---- users cache + current-user selection ----
 let usersCache = [];
@@ -13177,6 +13334,29 @@ function getCurrentUser() {
   }
 }
 
+function getSavedUserLogin() {
+  try {
+    const raw = localStorage.getItem('zu_saved_login');
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !data.email) return null;
+    return {
+      email: (data.email || '').toString().trim(),
+      password: (data.password || '').toString()
+    };
+  } catch(e) {
+    return null;
+  }
+}
+
+function saveUserLogin(email, password) {
+  try {
+    localStorage.setItem('zu_saved_login', JSON.stringify({
+      email: (email || '').toString().trim(),
+      password: (password || '').toString()
+    }));
+  } catch(e) {}
+}
 
 function setCurrentUser(u) {
 
@@ -13200,6 +13380,17 @@ function setCurrentUser(u) {
     #zu-bar button{background:#142766;color:#f5f8ff;border:1px solid #3a4f99;border-radius:5px;
       padding:6px 10px;cursor:pointer;font-size:12px;white-space:nowrap;}
     #zu-bar button:hover{background:#1f3585;}
+    #zu-bar .zu-menu-wrap{position:relative;display:inline-block;}
+    #zu-bar .zu-menu-toggle{background:#142766;color:#f5f8ff;border:1px solid #3a4f99;border-radius:5px;
+      padding:6px 10px;cursor:pointer;font-size:15px;line-height:1;min-width:36px;font-weight:700;}
+    #zu-bar .zu-menu-toggle:hover{background:#1f3585;}
+    #zu-bar .zu-menu{position:absolute;right:0;top:calc(100% + 6px);display:none;min-width:190px;
+      background:#fff;border:1px solid #dfe7f7;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.22);
+      padding:6px 0;z-index:9999;}
+    #zu-bar .zu-menu.open{display:block;}
+    #zu-bar .zu-menu-item{display:block;width:100%;text-align:left;background:transparent;color:#142766;border:none;border-radius:0;
+      padding:8px 12px;cursor:pointer;font-size:12px;white-space:nowrap;}
+    #zu-bar .zu-menu-item:hover{background:#f2f5fc;color:#142766;}
     #zu-bar .zu-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
     #zu-bar .zu-dot.on{background:#3ddc84;} #zu-bar .zu-dot.off{background:#ff6b6b;}
     .zu-overlay{position:fixed;inset:0;background:rgba(10,20,50,.55);z-index:99990;display:flex;
@@ -13229,11 +13420,43 @@ function setCurrentUser(u) {
   bar.id = 'zu-bar';
   bar.innerHTML = `
     <button id="zuConnectBtn"><span class="zu-dot off" id="zuDot"></span>Connect Zoho</button>
-    <button id="zuWhoBtn">👤 Select your name</button>
-    <button id="zuManageBtn">👥 Users</button>
-    <button id="zuUsageBtn">📊 Usage</button>
+    <div class="zu-menu-wrap">
+      <button id="zuMenuToggle" class="zu-menu-toggle" type="button" aria-label="More actions" aria-expanded="false">⋮</button>
+      <div id="zuMenu" class="zu-menu" role="menu" aria-label="More actions">
+        <button id="zuWhoBtn" class="zu-menu-item" type="button" role="menuitem">👤 Select your name</button>
+        <button id="zuManageBtn" class="zu-menu-item" type="button" role="menuitem" style="display:none;">👥 Users</button>
+        <button id="zuUsageBtn" class="zu-menu-item" type="button" role="menuitem">📊 Usage</button>
+      </div>
+    </div>
   `;
   document.body.appendChild(bar);
+
+  function closeZuMenu(){
+    const menu = document.getElementById('zuMenu');
+    const toggle = document.getElementById('zuMenuToggle');
+    if (!menu || !toggle) return;
+    menu.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleZuMenu(){
+    const menu = document.getElementById('zuMenu');
+    const toggle = document.getElementById('zuMenuToggle');
+    if (!menu || !toggle) return;
+    const isOpen = menu.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', String(isOpen));
+  }
+
+  document.getElementById('zuMenuToggle').addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleZuMenu();
+  });
+  document.addEventListener('click', (event) => {
+    const toggle = document.getElementById('zuMenuToggle');
+    const menu = document.getElementById('zuMenu');
+    if (!toggle || !menu) return;
+    if (!toggle.contains(event.target) && !menu.contains(event.target)) closeZuMenu();
+  });
 
   function openModal(html){
     const overlay = document.createElement('div');
@@ -13279,21 +13502,55 @@ function setCurrentUser(u) {
   }
   function escapeHtmlZu(s){ return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+  function getRememberedUserMatch(){
+    const remembered = getSavedUserLogin();
+    if (!remembered || !remembered.email || !usersCache.length) return null;
+    return usersCache.find(u => (u.email || '').toLowerCase() === remembered.email.toLowerCase()) || null;
+  }
+
   document.getElementById('zuWhoBtn').addEventListener('click', async () => {
     if (!isConnected()) { connect(); return; }
+    await refreshUsers();
+    const rememberedUser = getRememberedUserMatch();
+    if (rememberedUser) {
+      setCurrentUser(rememberedUser);
+      closeZuMenu();
+      return;
+    }
     const overlay = openModal(`
       <span class="zu-close">&times;</span>
       <h3>Who are you?</h3>
-      <p class="zu-muted">Picking your name lets usage be tracked per person. Don't see yourself? Ask an admin to add you via "👥 Users".</p>
+      <p class="zu-muted">Pick your name and enter your email + password once. It will be remembered on this browser so you won't be asked again.</p>
+      <div class="zu-row">
+        <input type="email" id="zuLoginEmail" placeholder="Your email address">
+        <input type="password" id="zuLoginPassword" placeholder="Password">
+      </div>
       <input type="text" id="zuPickerSearch" placeholder="Search by name or email…">
       <div id="zuPickerList"></div>
     `);
     overlay.querySelector('.zu-close').addEventListener('click', () => overlay.remove());
-    await refreshUsers();
     const search = overlay.querySelector('#zuPickerSearch');
     const list = overlay.querySelector('#zuPickerList');
-    fillUserListEl(list, '', (u) => { setCurrentUser(u); overlay.remove(); });
-    search.addEventListener('input', () => fillUserListEl(list, search.value, (u) => { setCurrentUser(u); overlay.remove(); }));
+    const emailInput = overlay.querySelector('#zuLoginEmail');
+    const passwordInput = overlay.querySelector('#zuLoginPassword');
+    const pickUser = (u) => {
+      const email = (emailInput.value || '').trim();
+      const password = (passwordInput.value || '').trim();
+      if (!email || !password) {
+        const status = overlay.querySelector('#zuLoginStatus') || document.createElement('div');
+        status.id = 'zuLoginStatus';
+        status.className = 'zu-muted';
+        status.textContent = 'Enter your email and password once to save this selection.';
+        status.style.marginTop = '8px';
+        if (!overlay.querySelector('#zuLoginStatus')) overlay.querySelector('.zu-row').after(status);
+        return;
+      }
+      saveUserLogin(email, password);
+      setCurrentUser(u);
+      overlay.remove();
+    };
+    fillUserListEl(list, '', pickUser);
+    search.addEventListener('input', () => fillUserListEl(list, search.value, pickUser));
   });
 
   // -- manage users modal --
@@ -13348,7 +13605,7 @@ function setCurrentUser(u) {
       </div>
       <div class="zu-summary" id="zuUsageSummary">Loading…</div>
       <div style="max-height:40vh;overflow:auto;">
-        <table id="zuUsageTable"><thead><tr><th>When</th><th>User</th><th>File</th><th>Type</th><th>Status</th></tr></thead><tbody></tbody></table>
+        <table id="zuUsageTable"><thead><tr><th>When</th><th>User</th><th>File</th><th>Type</th><th>Status</th><th>Start</th><th>End</th><th>Page Count</th></tr></thead><tbody></tbody></table>
       </div>
     `);
     overlay.querySelector('.zu-close').addEventListener('click', () => overlay.remove());
@@ -13387,6 +13644,9 @@ function setCurrentUser(u) {
           <td>${escapeHtmlZu(r['File Name']||'')}</td>
           <td>${escapeHtmlZu(r['File Type']||'')}</td>
           <td>${escapeHtmlZu(r['Status']||'')}</td>
+          <td>${escapeHtmlZu((r['Start Time']||'').toString().replace('T',' ').slice(0,19))}</td>
+          <td>${escapeHtmlZu((r['End Time']||'').toString().replace('T',' ').slice(0,19))}</td>
+          <td>${escapeHtmlZu(r['Page Count']||'')}</td>
         </tr>`).join('');
     }
     filterSel.addEventListener('change', render);
